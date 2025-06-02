@@ -206,67 +206,82 @@ INSERT INTO SqlErrorLog (AttemptedAction, SQLStatement, ErrorMessage, Cause, Res
 
 
 
--- ===========================================
---Error Log Simulation
--- ===========================================
--- 1. Delete a member who has active loan (will fail - FK constraint)
+-- =============================================================
+-- ERROR SIMULATION + EXPLANATIONS FOR LIBRARY MANAGEMENT SYSTEM
+-- =============================================================
+
+-- 1. Delete a member who has active loans
 DELETE FROM Member WHERE MemberID = 1;
--- Error: Member has active loans → violates FK constraint.
+-- ERROR: Cannot delete because MemberID 1 is still referenced in the Loan table (active loans).
+-- To fix: Either delete the related loans (not recommended) or update them to show they are completed.
 
--- 2. Delete a member who wrote book reviews (will fail - FK constraint)
+-- 2. Delete a member who has written reviews
 DELETE FROM Member WHERE MemberID = 2;
--- Error: Member has reviews → violates FK constraint.
+-- ERROR: MemberID 2 has reviews in the Review table, so deletion fails due to FK constraint.
+-- To fix: DELETE FROM Review WHERE MemberID = 2; first, then delete the member.
 
--- 3. Delete a book that is currently on loan (will fail - FK constraint)
+-- 3. Delete a book that is currently on loan
 DELETE FROM Book WHERE BookID = 3;
--- Error: Book is referenced in Loan table.
+-- ERROR: BookID 3 is referenced in the Loan table (loan still active).
+-- To fix: UPDATE Loan SET ReturnDate = GETDATE() WHERE BookID = 3 AND ReturnDate IS NULL;
 
--- 4. Delete a book with multiple reviews (will fail - FK constraint)
+-- 4. Delete a book with multiple reviews
 DELETE FROM Book WHERE BookID = 2;
--- Error: Book is referenced in Review table.
+-- ERROR: FK violation because Review table references this book.
+-- To fix: DELETE FROM Review WHERE BookID = 2;
 
--- 5. Insert a loan for non-existent member (will fail - FK constraint)
+-- 5. Insert a loan for a non-existent member
 INSERT INTO Loan (MemberID, BookID, LoanDate, DueDate, Status)
 VALUES (999, 2, '2024-06-01', '2024-06-10', 'Issued');
--- Error: MemberID 999 does not exist.
+-- ERROR: No such member (MemberID = 999) → violates FK constraint.
+-- To fix: INSERT a valid member first.
 
--- 6. Insert a loan for non-existent book (will fail - FK constraint)
+-- 6. Insert a loan for a non-existent book
 INSERT INTO Loan (MemberID, BookID, LoanDate, DueDate, Status)
 VALUES (1, 9999, '2024-06-01', '2024-06-10', 'Issued');
--- Error: BookID 9999 does not exist.
+-- ERROR: BookID 9999 does not exist.
+-- To fix: INSERT INTO Book (...) VALUES (...) for BookID = 9999.
 
--- 7. Update book genre to disallowed value (will fail - CHECK constraint)
+-- 7. Update a book to an invalid genre
 UPDATE Book SET Genre = 'Sci-Fi' WHERE BookID = 2;
--- Error: Genre must be one of: Fiction, Non-fiction, Reference, Children.
+-- ERROR: CHECK constraint violation. Only allowed genres: 'Fiction', 'Non-fiction', 'Reference', 'Children'.
+-- To fix: Use an allowed value, like 'Fiction'.
 
--- 8. Insert payment with zero amount (will fail - CHECK constraint)
+-- 8. Insert a payment with zero amount
 INSERT INTO Payment (LoanID, PaymentDate, Amount, Method)
 VALUES (1, '2024-06-01', 0.00, 'Cash');
---Error: Amount must be > 0.
+-- ERROR: CHECK constraint → Amount must be greater than 0.
+-- To fix: Use a positive amount like 5.00.
 
--- 9. Insert payment with negative amount (will fail - CHECK constraint)
+-- 9. Insert a payment with a negative amount
 INSERT INTO Payment (LoanID, PaymentDate, Amount, Method)
 VALUES (1, '2024-06-01', -10.00, 'Card');
--- Error: Amount must be > 0.
+-- ERROR: CHECK constraint violation → negative payment not allowed.
+-- To fix: Make sure Amount > 0.
 
--- 10. Insert payment without method (will fail - NOT NULL constraint)
+-- 10. Insert payment without specifying method
 INSERT INTO Payment (LoanID, PaymentDate, Amount)
 VALUES (1, '2024-06-01', 5.00);
--- Error: Method cannot be NULL.
+-- ERROR: Method column is NOT NULL.
+-- To fix: Add method (e.g., 'Online', 'Card', 'Cash').
 
--- 11. Insert review for non-existent book (will fail - FK constraint)
+-- 11. Insert review for a non-existent book
 INSERT INTO Review (MemberID, BookID, Rating, Comments, ReviewDate)
 VALUES (1, 9999, 4, 'Nice book.', '2024-06-01');
--- Error: BookID 9999 does not exist.
+-- ERROR: BookID 9999 doesn't exist → FK constraint error.
+-- To fix: Insert the missing book into Book table first.
 
--- 12. Insert review for non-existent member (will fail - FK constraint)
+-- 12. Insert review for a non-existent member
 INSERT INTO Review (MemberID, BookID, Rating, Comments, ReviewDate)
 VALUES (9999, 1, 4, 'Very useful.', '2024-06-01');
--- Error: MemberID 9999 does not exist.
+-- ERROR: MemberID 9999 doesn't exist → violates FK.
+-- To fix: Insert the missing member into Member table.
 
--- 13. Update Loan to non-existent MemberID (will fail - FK constraint)
+-- 13. Update loan to reference a non-existent member
 UPDATE Loan SET MemberID = 999 WHERE LoanID = 1;
--- Error: Cannot update to a member that doesn't exist.
+-- ERROR: FK violation. You cannot point to a member that doesn’t exist.
+-- To fix: INSERT the missing member or use a valid MemberID.
+
 
 
 
